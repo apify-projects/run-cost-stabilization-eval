@@ -4,9 +4,9 @@ import type { ActorRun } from 'apify-client';
 
 /**
  * Cost-related fields of a run that we watch for changes. Each signal is tracked separately so
- * we can tell e.g. pay-per-event charges apart from platform usage.
+ * we can tell e.g. pay-per-event charges apart from platform usage. `usageTotalUsd` is the headline one.
  */
-export const SIGNALS = ['cost', 'usageTotalUsd', 'chargedEventCounts', 'usage'] as const;
+export const SIGNALS = ['usageTotalUsd', 'usage', 'chargedEventCounts'] as const;
 export type Signal = (typeof SIGNALS)[number];
 
 export interface CostSnapshot {
@@ -28,6 +28,8 @@ export interface TrackerOptions {
 }
 
 export interface SignalResult {
+    /** Whether the run reported this field at all (e.g. `chargedEventCounts` only exists for pay-per-event). */
+    present: boolean;
     /** Number of changes observed after the run finished (after the first snapshot). */
     changeCount: number;
     /**
@@ -95,21 +97,7 @@ export function snapshotFromRun(run: ActorRun): CostSnapshot {
 }
 
 function fingerprint(snapshot: CostSnapshot, signal: Signal): string {
-    switch (signal) {
-        case 'cost':
-            return stableStringify({
-                usageTotalUsd: snapshot.usageTotalUsd,
-                chargedEventCounts: snapshot.chargedEventCounts,
-            });
-        case 'usageTotalUsd':
-            return stableStringify(snapshot.usageTotalUsd);
-        case 'chargedEventCounts':
-            return stableStringify(snapshot.chargedEventCounts);
-        case 'usage':
-            return stableStringify(snapshot.usage);
-        default:
-            throw new Error(`Unknown signal ${signal satisfies never}`);
-    }
+    return stableStringify(snapshot[signal]);
 }
 
 /**
@@ -140,6 +128,7 @@ export async function trackCostStabilization(
         SIGNALS.map((s) => [
             s,
             {
+                present: initialSnapshot[s] !== null,
                 changeCount: 0,
                 stabilizedAfterMs: firstSnapshotObservedAt - finishedAt,
                 stabilizedAfterLowerBoundMs: null,
@@ -194,6 +183,7 @@ export async function trackCostStabilization(
             fingerprints[signal] = fp;
             changedSignals.push(signal);
             const result = signals[signal];
+            if (snapshot[signal] !== null) result.present = true;
             result.changeCount++;
             result.stabilizedAfterMs = observedAt - finishedAt;
             result.stabilizedAfterLowerBoundMs = previousObservedAt - finishedAt;

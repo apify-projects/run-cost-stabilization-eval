@@ -120,13 +120,32 @@ function buildSummary(ctx: ActorContext) {
     const { records } = state.actors[ctx.key];
     const tracked = records.filter((r): r is RunRecord & { tracking: TrackingResult } => r.tracking !== null);
     const stabilized = tracked.filter((r) => r.tracking.stabilized);
-    const stabilizationStats = Object.fromEntries(
-        SIGNALS.map((signal) => [
-            `${signal}StabilizationMs`,
-            computeStats(stabilized.map((r) => r.tracking.signals[signal].stabilizedAfterMs)),
-        ]),
-    ) as Record<`${Signal}StabilizationMs`, Stats>;
     const numbers = (values: (number | null)[]) => values.filter((v): v is number => v !== null);
+    // Per-signal stats only over runs that reported the field (e.g. `chargedEventCounts` exists only for PPE).
+    const reporting = (signal: Signal) => tracked.filter((r) => r.tracking.signals[signal].present);
+    const stabilizedReporting = (signal: Signal) => reporting(signal).filter((r) => r.tracking.stabilized);
+    const perSignal = <T>(fn: (signal: Signal) => T) =>
+        Object.fromEntries(SIGNALS.map((signal) => [signal, fn(signal)])) as Record<Signal, T>;
+    const signalStats = Object.fromEntries(
+        SIGNALS.flatMap((signal) => [
+            [
+                `${signal}StabilizationMs`,
+                computeStats(stabilizedReporting(signal).map((r) => r.tracking.signals[signal].stabilizedAfterMs)),
+            ],
+            [
+                `${signal}StabilizationLowerBoundMs`,
+                computeStats(
+                    numbers(
+                        stabilizedReporting(signal).map((r) => r.tracking.signals[signal].stabilizedAfterLowerBoundMs),
+                    ),
+                ),
+            ],
+            [
+                `${signal}ChangeCount`,
+                computeStats(reporting(signal).map((r) => r.tracking.signals[signal].changeCount)),
+            ],
+        ]),
+    ) as Record<`${Signal}${'StabilizationMs' | 'StabilizationLowerBoundMs' | 'ChangeCount'}`, Stats>;
 
     return {
         actor: ctx.key,
@@ -140,15 +159,14 @@ function buildSummary(ctx: ActorContext) {
         runsStabilized: stabilized.length,
         runsNotStabilized: tracked.length - stabilized.length,
         runsErrored: records.length - tracked.length,
-        runsWithCostChangeAfterFinish: tracked.filter((r) => r.tracking.signals.cost.changeCount > 0).length,
         runStatuses: countBy(tracked, (r) => r.status ?? 'UNKNOWN'),
-        // Headline number: time from run finish until usageTotalUsd + chargedEventCounts stopped changing.
-        ...stabilizationStats,
-        costStabilizationLowerBoundMs: computeStats(
-            numbers(stabilized.map((r) => r.tracking.signals.cost.stabilizedAfterLowerBoundMs)),
+        runsReportingSignal: perSignal((signal) => reporting(signal).length),
+        runsWithChangeAfterFinish: perSignal(
+            (signal) => reporting(signal).filter((r) => r.tracking.signals[signal].changeCount > 0).length,
         ),
+        // Headline number is usageTotalUsdStabilizationMs: time from run finish until usageTotalUsd stopped changing.
+        ...signalStats,
         firstSnapshotLagMs: computeStats(tracked.map((r) => r.tracking.firstSnapshotLagMs)),
-        costChangeCount: computeStats(tracked.map((r) => r.tracking.signals.cost.changeCount)),
         usageTotalUsdIncreaseAfterFinish: computeStats(
             numbers(
                 tracked.map((r) =>
@@ -173,10 +191,10 @@ async function finalizeActor(ctx: ActorContext) {
     await saveDetails(ctx);
     const summary = buildSummary(ctx);
     await Actor.pushData(summary);
-    const cost = summary.costStabilizationMs;
+    const cost = summary.usageTotalUsdStabilizationMs;
     log.info(
         `[${ctx.key}] done: ${summary.runsStabilized}/${summary.runsTotal} runs stabilized, ` +
-            `cost stabilization median ${cost.median} ms, p99 ${cost.p99} ms, max ${cost.max} ms.`,
+            `usageTotalUsd stabilization median ${cost.median} ms, p99 ${cost.p99} ms, max ${cost.max} ms.`,
     );
 }
 
@@ -214,11 +232,17 @@ async function evaluateRun(ctx: ActorContext, iteration: number): Promise<RunRec
         record.tracking = await trackCostStabilization(finished, observedAt, trackerOptions, {
             fetchRun: async () => client.run(started.id).get(),
         });
-        const { cost } = record.tracking.signals;
+        const { signals } = record.tracking;
+        const perSignalLog = SIGNALS.filter((signal) => signals[signal].present)
+            .map(
+                (signal) =>
+                    `${signal} ${signals[signal].stabilizedAfterMs} ms (${signals[signal].changeCount} changes)`,
+            )
+            .join(', ');
         log.info(
             `[${ctx.key}] #${iteration} run ${started.id} ${finished.status}: ` +
-                `${record.tracking.stabilized ? 'stabilized' : 'NOT stabilized'} after ${cost.stabilizedAfterMs} ms ` +
-                `(${cost.changeCount} change(s), first snapshot lag ${record.tracking.firstSnapshotLagMs} ms).`,
+                `${record.tracking.stabilized ? 'stabilized' : 'NOT stabilized'}: ${perSignalLog}; ` +
+                `first snapshot lag ${record.tracking.firstSnapshotLagMs} ms.`,
         );
     } catch (err) {
         record.error = (err as Error).message;

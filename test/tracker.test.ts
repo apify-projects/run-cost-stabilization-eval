@@ -54,10 +54,12 @@ describe('trackCostStabilization', () => {
         const { deps, firstObservedAt } = setup(() => makeRun(0.5));
         const result = await trackCostStabilization(makeRun(0.5), firstObservedAt, options, deps);
         expect(result.stabilized).toBe(true);
-        expect(result.signals.cost.changeCount).toBe(0);
-        expect(result.signals.cost.stabilizedAfterMs).toBe(300);
-        expect(result.signals.cost.stabilizedAfterLowerBoundMs).toBeNull();
+        expect(result.signals.usageTotalUsd.changeCount).toBe(0);
+        expect(result.signals.usageTotalUsd.stabilizedAfterMs).toBe(300);
+        expect(result.signals.usageTotalUsd.stabilizedAfterLowerBoundMs).toBeNull();
         expect(result.changes).toEqual([]);
+        expect(result.signals.usageTotalUsd.present).toBe(true);
+        expect(result.signals.chargedEventCounts.present).toBe(false);
     });
 
     it('detects the last change and waits the full stable window after it', async () => {
@@ -66,15 +68,16 @@ describe('trackCostStabilization', () => {
         const result = await trackCostStabilization(makeRun(0.5), firstObservedAt, options, deps);
 
         expect(result.stabilized).toBe(true);
-        expect(result.signals.cost.changeCount).toBe(2);
         expect(result.signals.usageTotalUsd.changeCount).toBe(2);
         expect(result.signals.chargedEventCounts.changeCount).toBe(0);
         // Second change happens at 4000 ms; after 2 s of silence polling slows to 500 ms, so it is seen within 500 ms.
-        expect(result.signals.cost.stabilizedAfterMs).toBeGreaterThanOrEqual(4000);
-        expect(result.signals.cost.stabilizedAfterMs).toBeLessThan(4600);
-        expect(result.signals.cost.stabilizedAfterLowerBoundMs).toBeLessThan(4000);
+        expect(result.signals.usageTotalUsd.stabilizedAfterMs).toBeGreaterThanOrEqual(4000);
+        expect(result.signals.usageTotalUsd.stabilizedAfterMs).toBeLessThan(4600);
+        expect(result.signals.usageTotalUsd.stabilizedAfterLowerBoundMs).toBeLessThan(4000);
         expect(result.finalSnapshot.usageTotalUsd).toBe(0.65);
-        expect(result.trackedForMs).toBeGreaterThanOrEqual(result.signals.cost.stabilizedAfterMs - 300 + 10_000);
+        expect(result.trackedForMs).toBeGreaterThanOrEqual(
+            result.signals.usageTotalUsd.stabilizedAfterMs - 300 + 10_000,
+        );
         // Fast polling right after finish, slow polling later: far fewer polls than 14 s / 100 ms.
         expect(calls()).toBeLessThan(80);
     });
@@ -85,10 +88,26 @@ describe('trackCostStabilization', () => {
         const result = await trackCostStabilization(makeRun(0.1, { result: 5 }), firstObservedAt, options, deps);
         expect(result.signals.chargedEventCounts.changeCount).toBe(1);
         expect(result.signals.usageTotalUsd.changeCount).toBe(0);
-        expect(result.signals.cost.stabilizedAfterMs).toBeGreaterThanOrEqual(700);
-        expect(result.signals.cost.stabilizedAfterMs).toBeLessThan(840);
+        expect(result.signals.chargedEventCounts.present).toBe(true);
+        expect(result.signals.chargedEventCounts.stabilizedAfterMs).toBeGreaterThanOrEqual(700);
+        expect(result.signals.chargedEventCounts.stabilizedAfterMs).toBeLessThan(840);
+        // usageTotalUsd never changed, so it was final already at the first snapshot.
+        expect(result.signals.usageTotalUsd.stabilizedAfterMs).toBe(300);
+        // The stable window waits for all signals, so tracking continues 10 s after the event count change.
+        expect(result.trackedForMs).toBeGreaterThanOrEqual(10_000 + 700 - 300);
         expect(result.initialSnapshot.eventChargeUsd).toBeCloseTo(0.05);
         expect(result.finalSnapshot.eventChargeUsd).toBeCloseTo(0.08);
+    });
+
+    it('tracks the usage object separately from usageTotalUsd', async () => {
+        const withUsage = (reads: number) => ({ ...makeRun(0.2), usage: { DATASET_READS: reads, DATASET_WRITES: 3 } });
+        const { deps, firstObservedAt } = setup((ms) => withUsage(ms < 2500 ? 1 : 2) as ActorRun);
+        const result = await trackCostStabilization(withUsage(1) as ActorRun, firstObservedAt, options, deps);
+        expect(result.signals.usage.present).toBe(true);
+        expect(result.signals.usage.changeCount).toBe(1);
+        expect(result.signals.usage.stabilizedAfterMs).toBeGreaterThanOrEqual(2500);
+        expect(result.signals.usageTotalUsd.changeCount).toBe(0);
+        expect(result.finalSnapshot.usage).toEqual({ DATASET_READS: 2, DATASET_WRITES: 3 });
     });
 
     it('gives up after maxTrackingMillis when cost keeps changing', async () => {

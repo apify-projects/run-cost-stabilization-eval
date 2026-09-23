@@ -11,30 +11,73 @@
                     "pricingModel",
                     "runsTotal",
                     "runsStabilized",
-                    "runsWithCostChangeAfterFinish",
-                    "costStabilizationMs.median",
-                    "costStabilizationMs.p90",
-                    "costStabilizationMs.p99",
-                    "costStabilizationMs.p99_9",
-                    "costStabilizationMs.max",
+                    "usageTotalUsdStabilizationMs.median",
+                    "usageTotalUsdStabilizationMs.p99",
+                    "usageTotalUsdStabilizationMs.p99_9",
+                    "usageTotalUsdStabilizationMs.max",
+                    "usageStabilizationMs.p99",
+                    "usageStabilizationMs.max",
+                    "chargedEventCountsStabilizationMs.p99",
+                    "chargedEventCountsStabilizationMs.max",
                     "detailsUrl"
                 ],
-                "flatten": ["costStabilizationMs"]
+                "flatten": ["usageTotalUsdStabilizationMs", "usageStabilizationMs", "chargedEventCountsStabilizationMs"]
             },
             "display": {
                 "component": "table",
                 "properties": {
-                    "actor": { "label": "Actor", "format": "text" },
-                    "pricingModel": { "label": "Pricing model", "format": "text" },
-                    "runsTotal": { "label": "Runs", "format": "number" },
-                    "runsStabilized": { "label": "Stabilized", "format": "number" },
-                    "runsWithCostChangeAfterFinish": { "label": "Changed after finish", "format": "number" },
-                    "costStabilizationMs.median": { "label": "Median (ms)", "format": "number" },
-                    "costStabilizationMs.p90": { "label": "p90 (ms)", "format": "number" },
-                    "costStabilizationMs.p99": { "label": "p99 (ms)", "format": "number" },
-                    "costStabilizationMs.p99_9": { "label": "p99.9 (ms)", "format": "number" },
-                    "costStabilizationMs.max": { "label": "Max (ms)", "format": "number" },
-                    "detailsUrl": { "label": "Run details", "format": "link" }
+                    "actor": {
+                        "label": "Actor",
+                        "format": "text"
+                    },
+                    "pricingModel": {
+                        "label": "Pricing model",
+                        "format": "text"
+                    },
+                    "runsTotal": {
+                        "label": "Runs",
+                        "format": "number"
+                    },
+                    "runsStabilized": {
+                        "label": "Stabilized",
+                        "format": "number"
+                    },
+                    "usageTotalUsdStabilizationMs.median": {
+                        "label": "usageTotalUsd median (ms)",
+                        "format": "number"
+                    },
+                    "usageTotalUsdStabilizationMs.p99": {
+                        "label": "usageTotalUsd p99 (ms)",
+                        "format": "number"
+                    },
+                    "usageTotalUsdStabilizationMs.p99_9": {
+                        "label": "usageTotalUsd p99.9 (ms)",
+                        "format": "number"
+                    },
+                    "usageTotalUsdStabilizationMs.max": {
+                        "label": "usageTotalUsd max (ms)",
+                        "format": "number"
+                    },
+                    "usageStabilizationMs.p99": {
+                        "label": "usage p99 (ms)",
+                        "format": "number"
+                    },
+                    "usageStabilizationMs.max": {
+                        "label": "usage max (ms)",
+                        "format": "number"
+                    },
+                    "chargedEventCountsStabilizationMs.p99": {
+                        "label": "chargedEventCounts p99 (ms)",
+                        "format": "number"
+                    },
+                    "chargedEventCountsStabilizationMs.max": {
+                        "label": "chargedEventCounts max (ms)",
+                        "format": "number"
+                    },
+                    "detailsUrl": {
+                        "label": "Run details",
+                        "format": "link"
+                    }
                 }
             }
         }

@@ -11,21 +11,22 @@ For each Actor in the input:
 1. Loads the Actor's default build (or the build you pick) and builds the run input from the `prefill` values in its input schema, the same input you get in Console when you click Start without changing anything. If the schema has no prefills, the Actor's example run input is used. You can merge extra fields over it with `inputOverrides`.
 2. Starts the run and waits for it to finish. The run object returned when the run finishes is the first cost snapshot.
 3. Polls `GET /v2/actor-runs/:runId` every 100 ms. After the cost has been unchanged for 2 s, polling slows down to every 500 ms. Any change switches it back to 100 ms.
-4. Once nothing changed for 10 s, the run counts as stabilized. A run that is still changing after 10 minutes counts as not stabilized.
-5. Records the time from the run's `finishedAt` to the first poll that returned the final value.
+4. Once no tracked field changed for 10 s, the run counts as stabilized. A run that is still changing after 10 minutes counts as not stabilized.
+5. Records, separately for each tracked field, the time from the run's `finishedAt` to the first poll that returned its final value.
 
 Runs of all Actors are interleaved and executed with a configurable concurrency (5 by default). Each iteration is a separate run.
 
 ### Tracked signals
 
-Each of these is tracked separately, so you can see which part of the cost settles last. That matters because pay-per-event and pay-per-usage Actors are billed differently.
+Each field is tracked and reported separately, so you can see which part of the cost settles last. That matters because pay-per-event and pay-per-usage Actors are billed differently.
 
-| Signal               | What changes                                                                  |
-| -------------------- | ----------------------------------------------------------------------------- |
-| `cost`               | `usageTotalUsd` or `chargedEventCounts`. **This is the headline number.**     |
-| `usageTotalUsd`      | Platform usage cost in USD                                                    |
-| `chargedEventCounts` | Pay-per-event event counts                                                    |
-| `usage`              | Raw usage units (compute units, storage operations, data transfer, and so on) |
+| Signal               | What changes                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `usageTotalUsd`      | Platform usage cost in USD. **This is the headline number, used for all Actors.**    |
+| `usage`              | The raw `usage` object (compute units, storage operations, data transfer, and so on) |
+| `chargedEventCounts` | The `chargedEventCounts` object of pay-per-event Actors                              |
+
+Stats for a signal only include runs that reported that field, so pay-per-usage Actors have no `chargedEventCounts` stats (`count: 0`) instead of misleading zeros. The 10 s stable window restarts when any of the signals changes, so a late event count change is still measured even if `usageTotalUsd` is already final.
 
 ## Input
 
@@ -60,8 +61,9 @@ Each of these is tracked separately, so you can see which part of the cost settl
     "inputSource": "inputSchemaPrefill",
     "runsTotal": 50,
     "runsStabilized": 50,
-    "runsWithCostChangeAfterFinish": 37,
-    "costStabilizationMs": {
+    "runsReportingSignal": { "usageTotalUsd": 50, "usage": 50, "chargedEventCounts": 50 },
+    "runsWithChangeAfterFinish": { "usageTotalUsd": 37, "usage": 41, "chargedEventCounts": 12 },
+    "usageTotalUsdStabilizationMs": {
         "count": 50,
         "min": 180,
         "max": 4210,
@@ -73,12 +75,15 @@ Each of these is tracked separately, so you can see which part of the cost settl
         "p99": 3950,
         "p99_9": 4184
     },
-    "usageTotalUsdStabilizationMs": { "...": "same shape" },
-    "chargedEventCountsStabilizationMs": { "...": "same shape" },
+    "usageTotalUsdStabilizationLowerBoundMs": { "...": "same shape" },
+    "usageTotalUsdChangeCount": { "...": "same shape" },
     "usageStabilizationMs": { "...": "same shape" },
-    "costStabilizationLowerBoundMs": { "...": "same shape" },
+    "usageStabilizationLowerBoundMs": { "...": "same shape" },
+    "usageChangeCount": { "...": "same shape" },
+    "chargedEventCountsStabilizationMs": { "...": "same shape" },
+    "chargedEventCountsStabilizationLowerBoundMs": { "...": "same shape" },
+    "chargedEventCountsChangeCount": { "...": "same shape" },
     "firstSnapshotLagMs": { "...": "same shape" },
-    "costChangeCount": { "...": "same shape" },
     "usageTotalUsdIncreaseAfterFinish": { "...": "same shape" },
     "finalUsageTotalUsd": { "...": "same shape" },
     "finalEventChargeUsd": { "...": "same shape" },
@@ -89,8 +94,8 @@ Each of these is tracked separately, so you can see which part of the cost settl
 
 (The numbers above are illustrative.)
 
-- `*StabilizationMs` is computed over stabilized runs only. It is the time from `finishedAt` until the final value was first seen, so it is an upper bound with poll-interval precision. `costStabilizationLowerBoundMs` gives the matching lower bound: the last poll that still returned the old value. It only covers runs where a change was seen.
-- If the cost never changed after we first looked, the stabilization time equals `firstSnapshotLagMs`, the delay between `finishedAt` and the moment the finished run was returned to us.
+- `*StabilizationMs` is computed over stabilized runs only. It is the time from `finishedAt` until the final value was first seen, so it is an upper bound with poll-interval precision. `*StabilizationLowerBoundMs` gives the matching lower bound: the last poll that still returned the old value. It only covers runs where a change was seen.
+- If a field never changed after we first looked, the stabilization time equals `firstSnapshotLagMs`, the delay between `finishedAt` and the moment the finished run was returned to us.
 - For pay-per-event Actors, `finalEventChargeUsd` is computed from `chargedEventCounts` and the event prices in the run's pricing info.
 
 ### Key-value store: per-run details
