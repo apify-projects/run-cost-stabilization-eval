@@ -2,5 +2,41 @@
     "$schema": "https://apify.com/schemas/v1/dataset.ide.json",
     "actorSpecification": 1,
     "fields": {},
-    "views": {}
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": [
+                    "actor",
+                    "pricingModel",
+                    "runsTotal",
+                    "runsStabilized",
+                    "runsWithCostChangeAfterFinish",
+                    "costStabilizationMs.median",
+                    "costStabilizationMs.p90",
+                    "costStabilizationMs.p99",
+                    "costStabilizationMs.p99_9",
+                    "costStabilizationMs.max",
+                    "detailsUrl"
+                ],
+                "flatten": ["costStabilizationMs"]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "actor": { "label": "Actor", "format": "text" },
+                    "pricingModel": { "label": "Pricing model", "format": "text" },
+                    "runsTotal": { "label": "Runs", "format": "number" },
+                    "runsStabilized": { "label": "Stabilized", "format": "number" },
+                    "runsWithCostChangeAfterFinish": { "label": "Changed after finish", "format": "number" },
+                    "costStabilizationMs.median": { "label": "Median (ms)", "format": "number" },
+                    "costStabilizationMs.p90": { "label": "p90 (ms)", "format": "number" },
+                    "costStabilizationMs.p99": { "label": "p99 (ms)", "format": "number" },
+                    "costStabilizationMs.p99_9": { "label": "p99.9 (ms)", "format": "number" },
+                    "costStabilizationMs.max": { "label": "Max (ms)", "format": "number" },
+                    "detailsUrl": { "label": "Run details", "format": "link" }
+                }
+            }
+        }
+    }
 }

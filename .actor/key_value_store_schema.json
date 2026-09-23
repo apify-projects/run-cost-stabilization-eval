@@ -1,0 +1,12 @@
+{
+    "actorKeyValueStoreSchemaVersion": 1,
+    "title": "Run cost stabilization details",
+    "collections": {
+        "runDetails": {
+            "title": "Per-run details",
+            "description": "One record per evaluated Actor with the input used and, for every run, the cost timeline observed after the run finished.",
+            "keyPrefix": "RUNS-",
+            "contentTypes": ["application/json"]
+        }
+    }
+}

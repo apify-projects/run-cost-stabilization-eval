@@ -1,14 +1,14 @@
 {
-    "name": "ts-empty",
+    "name": "run-cost-stabilization-eval",
     "version": "0.0.1",
     "type": "module",
-    "description": "This is an example of an Apify Actor.",
+    "description": "Measures how long it takes for the cost of an Apify Actor run to stabilize after the run finishes.",
     "engines": {
         "node": ">=22"
     },
     "dependencies": {
         "apify": "^3.7.0",
-        "@crawlee/cheerio": "^3.15.3"
+        "apify-client": "^2.25.0"
     },
     "devDependencies": {
         "@apify/eslint-config": "^2.0.0",

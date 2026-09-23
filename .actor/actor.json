@@ -1,19 +1,20 @@
 {
     "$schema": "https://apify.com/schemas/v1/actor.ide.json",
     "actorSpecification": 1,
-    "name": "ts-empty",
-    "title": "Empty TypeScript project",
-    "description": "Empty project in TypeScript.",
-    "version": "0.0",
+    "name": "run-cost-stabilization-eval",
+    "title": "Run cost stabilization evaluator",
+    "description": "Runs Actors repeatedly and measures how long after a run finishes its cost keeps changing in the API.",
+    "version": "0.1",
     "buildTag": "latest",
     "meta": {
         "templateId": "ts-empty",
-        "generatedBy": "<FILL-IN-MODEL>"
+        "generatedBy": "Claude Code"
     },
     "inputSchema": "./input_schema.json",
     "outputSchema": "./output_schema.json",
     "storages": {
-        "dataset": "./dataset_schema.json"
+        "dataset": "./dataset_schema.json",
+        "keyValueStore": "./key_value_store_schema.json"
     },
     "dockerfile": "../Dockerfile"
 }

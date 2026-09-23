@@ -5,8 +5,13 @@
     "properties": {
         "results": {
             "type": "string",
-            "title": "Results",
+            "title": "Per-Actor stabilization statistics",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
+        },
+        "runDetails": {
+            "type": "string",
+            "title": "Per-run details",
+            "template": "{{links.apiDefaultKeyValueStoreUrl}}/keys?collection=runDetails"
         }
     }
 }

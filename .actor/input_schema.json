@@ -1,8 +1,100 @@
 {
     "$schema": "https://apify.com/schemas/v1/input.ide.json",
-    "title": "Actor input",
+    "title": "Run cost stabilization evaluator input",
     "type": "object",
     "schemaVersion": 1,
-    "properties": {},
-    "required": []
+    "properties": {
+        "actors": {
+            "title": "Actors to evaluate",
+            "type": "array",
+            "description": "Actor IDs or names (e.g. `apify/website-content-crawler`). Each Actor is run with the prefilled input from its input schema.",
+            "editor": "stringList",
+            "prefill": ["apify/hello-world"]
+        },
+        "iterations": {
+            "title": "Runs per Actor",
+            "type": "integer",
+            "description": "How many times each Actor is run.",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 10000
+        },
+        "maxConcurrentRuns": {
+            "title": "Max concurrent runs",
+            "type": "integer",
+            "description": "How many evaluated runs (across all Actors) are in flight at the same time. Each in-flight run is polled every few hundred milliseconds after it finishes, so keep this reasonable to stay under API rate limits.",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 50
+        },
+        "inputOverrides": {
+            "title": "Input overrides",
+            "type": "object",
+            "description": "Optional per-Actor input merged over the prefilled input, keyed by the Actor ID/name exactly as given in `actors`. Example: `{ \"apify/website-content-crawler\": { \"maxCrawlPages\": 1 } }`.",
+            "editor": "json",
+            "default": {}
+        },
+        "fastPollIntervalMillis": {
+            "title": "Fast poll interval (ms)",
+            "type": "integer",
+            "description": "How often the run cost is fetched while it is (or recently was) changing.",
+            "default": 100,
+            "minimum": 10,
+            "sectionCaption": "Stabilization detection"
+        },
+        "slowPollIntervalMillis": {
+            "title": "Slow poll interval (ms)",
+            "type": "integer",
+            "description": "Poll interval used once the cost has not changed for `slowdownAfterMillis`. Any change switches back to the fast interval.",
+            "default": 500,
+            "minimum": 10
+        },
+        "slowdownAfterMillis": {
+            "title": "Slow down after (ms)",
+            "type": "integer",
+            "description": "How long the cost must stay unchanged before switching to the slow poll interval.",
+            "default": 2000,
+            "minimum": 0
+        },
+        "stableWindowMillis": {
+            "title": "Stable confirmation window (ms)",
+            "type": "integer",
+            "description": "How long the cost must stay unchanged before it is considered stabilized.",
+            "default": 10000,
+            "minimum": 0
+        },
+        "maxTrackingMillis": {
+            "title": "Max tracking time per run (ms)",
+            "type": "integer",
+            "description": "Give up tracking a run after this long past its finish and mark it as not stabilized.",
+            "default": 600000,
+            "minimum": 1000
+        },
+        "runMemoryMbytes": {
+            "title": "Run memory (MB)",
+            "type": "integer",
+            "description": "Memory for the evaluated runs. Uses each Actor's default when empty.",
+            "minimum": 128,
+            "sectionCaption": "Evaluated run options"
+        },
+        "runTimeoutSecs": {
+            "title": "Run timeout (seconds)",
+            "type": "integer",
+            "description": "Timeout for the evaluated runs. Uses each Actor's default when empty.",
+            "minimum": 1
+        },
+        "runBuild": {
+            "title": "Build",
+            "type": "string",
+            "description": "Build tag or number to run. Uses each Actor's default build when empty.",
+            "editor": "textfield"
+        },
+        "maxTotalChargeUsd": {
+            "title": "Max total charge per run (USD)",
+            "type": "number",
+            "description": "Cost limit for each evaluated run of a pay-per-event Actor. Uses the platform default when empty.",
+            "minimum": 0
+        }
+    },
+    "required": ["actors"]
 }
